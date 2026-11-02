@@ -2,6 +2,7 @@
 
 import { Chart, registerables } from "chart.js";
 import type { CityWeather } from "../models/weather.model";
+import { storageService } from "../services/storage.service";
 
 Chart.register(...registerables);
 
@@ -15,9 +16,20 @@ export class FavoritesListComponent extends HTMLElement {
     this.attachShadow({ mode: "open" });
   }
 
-  connectedCallback(): void {
+  async connectedCallback(): Promise<void> {
     this.render();
     this.setupListeners();
+    await this.loadStoredFavorites();
+  }
+
+  private async loadStoredFavorites(): Promise<void> {
+    try {
+      this.favorites = await storageService.getFavorites();
+      this.render();
+      this.updateChart();
+    } catch (error) {
+      console.error("Помилка завантаження обраного зі сховища:", error);
+    }
   }
 
   private setupListeners(): void {
@@ -29,7 +41,7 @@ export class FavoritesListComponent extends HTMLElement {
     });
   }
 
-  public addCity(city: CityWeather): void {
+  public async addCity(city: CityWeather): Promise<void> {
     const exists = this.favorites.some((item) => item.city === city.city);
     if (exists) {
       alert(`Місто ${city.city} вже є у вашому списку обраного!`);
@@ -37,11 +49,12 @@ export class FavoritesListComponent extends HTMLElement {
     }
 
     this.favorites.push(city);
+    await storageService.saveFavorites(this.favorites);
     this.render();
     this.updateChart();
   }
 
-  public removeCity(cityName: string): void {
+  public async removeCity(cityName: string): Promise<void> {
     this.favorites = this.favorites.filter((item) => item.city !== cityName);
     this.render();
     this.updateChart();
